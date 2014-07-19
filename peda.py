@@ -84,36 +84,17 @@ class PEDA(object):
         Returns:
             - output of command (String)
         """
-        result = None
-        #init redirection
-        if silent:
-            logfd = open(os.path.devnull, "rw")
-        else:
-            logfd = tmpfile()
-        logname = logfd.name
-        gdb.execute('set logging off') # prevent nested call
-        gdb.execute('set height 0') # disable paging
-        gdb.execute('set logging file %s' % logname)
-        gdb.execute('set logging overwrite on')
-        gdb.execute('set logging redirect on')
-        gdb.execute('set logging on')
-        try:
-            gdb.execute(gdb_command)
-            gdb.flush()
-            gdb.execute('set logging off')
-            if not silent:
-                logfd.flush()
-                result = logfd.read()
-            logfd.close()
-        except Exception as e:
-            gdb.execute('set logging off') #to be sure
-            if config.Option.get("debug") == "on":
-                msg('Exception (%s): %s' % (gdb_command, e), "red")
-                traceback.print_exc()
-            logfd.close()
-        if config.Option.get("verbose") == "on":
+        result = b''
+
+        if 0 and config.Option.get("debug"):
+            msg(gdb_command)
+        
+        result = gdb.execute(gdb_command, to_string=True)
+
+        if 0 and config.Option.get("verbose"):
             msg(result)
-        return result
+
+        return decode(result,'utf-8')
 
     def parse_and_eval(self, exp):
         """
@@ -399,42 +380,7 @@ class PEDA(object):
         Returns:
             - pid (Int)
         """
-
-        out = None
-        status = self.get_status()
-        if not status or status == "STOPPED":
-            return None
-
-        if self.is_target_remote(): # remote target
-            ctx = config.Option.get("context")
-            config.Option.set("context", None)
-            try:
-                out = self.execute_redirect("call getpid()")
-            except:
-                pass
-
-            config.Option.set("context", ctx)
-
-            if out is None:
-                return None
-            else:
-                out = self.execute_redirect("print $")
-                if out:
-                    return to_int(out.split("=")[1])
-                else:
-                    return None
-
-        if self.getos() == "Linux":
-            out = self.execute_redirect('info proc')
-
-        if out is None: # non-Linux or cannot access /proc, fallback
-            out = self.execute_redirect('info program')
-        out = out.splitlines()[0]
-        if "process" in out or "Thread" in out:
-            pid = out.split()[-1].strip(".)")
-            return int(pid)
-        else:
-            return None
+        return gdb.selected_inferior().pid
 
     def getos(self):
         """
