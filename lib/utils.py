@@ -494,7 +494,107 @@ def format_reference_chain(chain):
                 s = hex2str(v)
                 if is_printable(s, "\x00"):
                     text += "(%s)" % s
+        ida_text = IDA.Comment(v) or IDA.Name(v)
+        if ida_text:
+            text = '%s [%s]' % (text, ida_text)
+
     return text
+
+import socket
+from contextlib import closing
+class IDA(object):
+    cache = {}
+
+    @staticmethod
+    def connect():
+        try:
+            return socket.create_connection(('localhost', 31337))
+        except:
+            return None
+
+    @staticmethod
+    def request(req, cacheable=True):
+        if cacheable and req in IDA.cache: return IDA.cache[req]
+
+        conn = IDA.connect()
+        if not conn: return ''
+        with closing(conn):
+            conn.sendall(req.encode())
+            data = conn.recv(4096).decode()
+            result = eval(data) or ''
+
+        if cacheable: IDA.cache[req] = result
+        return result
+
+    @staticmethod
+    def Comment(addr):
+        cmd = 'GetCommentEx(%(addr)s, 0) or GetCommentEx(%(addr)s, 1)' % locals()
+        return IDA.request(cmd)
+
+    @staticmethod
+    def Name(addr):
+        cmd = 'Name(%(addr)s)' % locals()
+        return IDA.request(cmd)
+
+    @staticmethod
+    def GetFuncOffset(addr):
+        cmd = 'GetFuncOffset(%(addr)s)' % locals()
+        return IDA.request(cmd)
+
+    @staticmethod
+    def here():
+        return IDA.request('here()', False)
+
+    @staticmethod
+    def Jump(addr):
+        cmd = 'Jump(%(addr)s)' % locals()
+        return IDA.request(cmd, False)
+
+    @staticmethod
+    def Check():
+        return here()
+
+    @staticmethod
+    def Anterior(addr):
+        hexrays_prefix = '\x01\x04; '
+        lines = []
+        for i in range(10):
+            cmd = 'LineA(%(addr)s, %(i)s)' % locals()
+            r = IDA.request(cmd)
+            if not r: break
+            if r.startswith(hexrays_prefix):
+                r = r[len(hexrays_prefix):]
+            lines.append(r)
+        return '\n'.join(lines)
+
+    _breakpoints=[]
+
+    @staticmethod
+    def GetBreakpoints():
+        return IDA.request('map(GetBptEA, range(GetBptQty()))', False)
+
+    @staticmethod
+    def UpdateBreakpoints():
+        current = set(eval(b.location.lstrip('*')) for b in IDA._breakpoints)
+        want    = set(IDA.GetBreakpoints())
+
+        print(want)
+
+        for addr in current-want:
+            for bp in IDA._breakpoints:
+                if eval(bp.location) == addr:
+                    print("delete", addr)
+                    bp.delete()
+                    break
+            IDA._breakpoints.remove(bp)
+
+        for bp in want-current:
+            bp = gdb.Breakpoint('*' + hex(bp))
+            IDA._breakpoints.append(bp)
+            print(IDA._breakpoints)
+
+
+
 
 def split_disasm_line(line):
     # example lines
@@ -509,6 +609,28 @@ def split_disasm_line(line):
 
     # PANIC!
     p,a,n,i,c = re.match(pattern, line).groups()
+
+    n = n or IDA.GetFuncOffset(a) or None
+
+    if not c:
+        c = IDA.Comment(a)
+        if c: c = '        ' + c
+        else: c = None
+
+    # Addresses
+    if  not i.endswith('>'):
+        for hit in re.finditer(raddr, i):
+            addr = hit.group(0)
+            name = IDA.Name(addr) or IDA.GetFuncOffset(addr)
+            if name:
+                i = i.replace(addr, '%s <%s>' % (addr, name))
+
+    # Anterior lines
+    anterior = IDA.Anterior(a)
+    if anterior:
+        original_prefix = p
+        for line in anterior.splitlines():
+            p = original_prefix + line + '\n' + p
 
     return p,int(a,16),n,i,(c or None)
 

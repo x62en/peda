@@ -4221,6 +4221,9 @@ class PEDACmd(object):
             text += peda.disassemble_around(pc, count)
             msg(format_disasm_code(text, pc))
             self.dumpargs()
+        # if (opcode, arg) == ("int","0x80"):
+            # self.dumpsyscall()
+        # if "int"
         # stopped at jump
         elif "j" in opcode:
             jumpto = peda.testjump(line)
@@ -4323,6 +4326,18 @@ class PEDACmd(object):
             msg("Stopped reason: %s" % red(status))
 
         return
+
+    def ida_jump(self, *a):
+        """
+        Yay
+        """
+        IDA().Jump(peda.getreg("pc"))
+
+    def ida_breakpoints(self, *a):
+        """
+        Whoo
+        """
+        IDA.UpdateBreakpoints()
 
 
     #################################
@@ -5985,7 +6000,9 @@ signal.signal(signal.SIGINT, sigint_handler)
 # custom hooks
 peda.define_user_command("hook-stop",
     "peda context\n"
-    "session autosave"
+    "session autosave\n"
+    "peda ida_jump\n"
+    "peda ida_breakpoints\n"
     )
 
 # common used shell commands aliases
