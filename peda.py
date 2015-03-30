@@ -3037,6 +3037,7 @@ class PEDACmd(object):
         self._eX(where, bytes, 2)
 
     def ed(self, where, *bytes):
+        "docs"
         self._eX(where, bytes, 4)
 
     def reload(self, *arg):
@@ -4865,7 +4866,7 @@ class PEDACmd(object):
                     text += format_reference_chain(chain)
                     text += "\n"
             if text:
-                msg(text.strip())
+                msg(encode(text.strip(), 'utf-8', 'ignore'))
             if regname is None or "eflags" in regname:
                 self.eflags()
             return
