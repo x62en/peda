@@ -4760,7 +4760,7 @@ class PEDACmd(object):
         for k,v in syms.items():
             s = gdb.lookup_global_symbol(v)
             if s is not None:
-                regs[k] = int(s.value())
+                regs[k] = to_int(s.value())
 
 
         regsList = {}
