@@ -10,8 +10,10 @@ from __future__ import print_function
 import random
 import socket
 import struct
-try: import http.client as httplib
-except: import httplib
+try:
+    import http.client as httplib
+except:
+    import httplib
 
 from codecs import encode, decode
 from utils import msg, error_msg
