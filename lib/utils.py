@@ -23,11 +23,15 @@ import config
 
 from codecs import encode, decode
 
-try:    from StringIO import StringIO # Python2
-except: from io       import StringIO # Python3
+try:
+    from StringIO import StringIO # Python2
+except:
+    from io       import StringIO # Python3
 
-try:    unicode
-except: unicode = str
+try:
+    unicode
+except:
+    unicode = str
 
 # http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 # http://stackoverflow.com/questions/8856164/class-decorator-decorating-method-in-python
@@ -144,6 +148,10 @@ def yellow(text, attrib=None):
 def blue(text, attrib=None):
     """Wrapper for colorize(text, 'blue')"""
     return colorize(text, "blue", attrib)
+
+def purple(text, attrib=None):
+    """Wrapper for colorize(text, 'purple')"""
+    return colorize(text, "purple", attrib)
 
 class message(object):
     """
